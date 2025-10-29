@@ -3,7 +3,6 @@
 
 #include <QObject>
 #include <QDebug>
-#include "qmqtt.h"
 #include <QUrl>
 #include <QUrlQuery>
 #include <QNetworkAccessManager>
@@ -12,16 +11,15 @@
 #include <QSettings>
 #include <QJsonDocument>
 #include <QJsonObject>
-
 #include "simpleQtLogger.h"
-
+#include <QtMqtt/QMqttClient>
 class Controller : public QObject
 {
     Q_OBJECT
 public:
     explicit Controller(QObject *parent = 0);
 private:
-    QMQTT::Client *client;
+    QMqttClient *client;
     QNetworkAccessManager *manager;
     QString m_url;
     QString m_api_id;
@@ -37,7 +35,7 @@ signals:
 
 public slots:
     void onConnected();
-    void onReceived(QMQTT::Message message);
+    void onReceived(const QMqttMessage &message);
     void replyFinished(QNetworkReply *reply);
 };
 

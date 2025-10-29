@@ -13,17 +13,20 @@ Controller::Controller(QObject *parent) : QObject(parent)
         L_WARN("Settings file not found at "+settings.fileName());
         L_WARN("Switch back to default settings");
     }
-    m_url = settings.value("Larahome/url","http://larahome.dev/api").toString();
+    m_url = settings.value("Larahome/url","http://larahome.gpmaurizi.local/api/").toString();
     m_api_id = settings.value("Larahome/api_id","").toString();
     m_api_key = settings.value("Larahome/api_key","").toString();
 
-    m_mqtt_ip = settings.value("MQTT/ip", "192.168.105.8").toString();
+    m_mqtt_ip = settings.value("MQTT/ip", "").toString();
     m_mqtt_port = settings.value("MQTT/port", "1883").toInt();
     m_mqtt_client_id = settings.value("MQTT/client_id", "M2L").toString();
     m_mqtt_channel=  settings.value("MQTT/channel", "mysensors-out/#").toString();
-    client = new QMQTT::Client(QHostAddress(m_mqtt_ip), m_mqtt_port);
+    client = new QMqttClient(this);
+//    client = new QMQTT::Client(QHostAddress(m_mqtt_ip), );
+    client->setHostname(m_mqtt_ip);  // ou ta variable m_mqtt_ip
+    client->setPort(m_mqtt_port);              // ou ta variable m_mqtt_port
     client->setClientId(m_mqtt_client_id);
-    client->setAutoReconnect(true);
+
     if(settings.contains("MQTT/user") && settings.contains("MQTT/password"))
     {
         m_mqtt_user = settings.value("MQTT/user").toString();
@@ -31,7 +34,7 @@ Controller::Controller(QObject *parent) : QObject(parent)
         client->setUsername(m_mqtt_user);
         client->setPassword(m_mqtt_password);
     }
-    L_INFO("Connecting to host: "+m_mqtt_ip+" on port: "+m_mqtt_port);
+    L_INFO("Connecting to host: "+m_mqtt_ip+" on port: "+QString::number(m_mqtt_port));
     client->connectToHost();
     QObject::connect(client, SIGNAL(connected()), this, SLOT(onConnected()));
 
@@ -45,13 +48,16 @@ void Controller::onConnected()
     L_INFO("Connected to mqtt server");
     L_INFO("Subscribe to channel "+ m_mqtt_channel);
     client->subscribe(m_mqtt_channel,0);
-    QObject::connect(client, SIGNAL(received(QMQTT::Message)), this, SLOT(onReceived(QMQTT::Message)));
+    auto sub = client->subscribe(QMqttTopicFilter("#"));
+    connect(sub, &QMqttSubscription::messageReceived,
+            this, &Controller::onReceived);
 }
 
-void Controller::onReceived(QMQTT::Message message)
+void Controller::onReceived(const QMqttMessage &message)
 {
-    QStringList topics = message.topic().split("/");
-    L_INFO("Incomming message from topic: "+message.topic()+" with payload: "+message.payload());
+    QString topicStr = message.topic().name();
+    QStringList topics = topicStr.split("/");
+    L_INFO("Incomming message from topic: "+topicStr+" with payload: "+message.payload());
 
     QUrl url(m_url+m_api_id);//Init URL
     QNetworkRequest request(url);
@@ -68,7 +74,7 @@ void Controller::onReceived(QMQTT::Message message)
         params.addQueryItem("api_key", m_api_key);
         url.setQuery(params);
         QByteArray data;
-        data.append(params.toString());
+        data.append(params.toString().toUtf8());
         L_INFO("Sending the message to LaraHome");
         manager->post(request, url.query().toUtf8());
     }

@@ -1,4 +1,4 @@
-QT += core network
+QT += core network mqtt
 QT -= gui
 
 CONFIG += c++11
@@ -6,7 +6,7 @@ CONFIG += c++11
 TARGET = M2L
 CONFIG += console
 CONFIG -= app_bundle
-LIBS += -lqmqtt
+#LIBS += -lqmqtt
 TEMPLATE = app
 
 SOURCES += main.cpp \
